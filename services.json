@@ -1,0 +1,5 @@
+{
+    "localhost1": "http://localhost:3001",
+    "locahost1": "http://localhost:3001",
+    "ExternalRestService": "https://jsonplaceholder.typicode.com"
+}

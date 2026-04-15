@@ -1,0 +1,787 @@
+{
+    "agents": [
+        {
+            "agentName": "notificationagent",
+            "agentDefinition": "**Instruction:**\nsends notification updates to a server",
+            "tools": [
+                {
+                    "toolName": "send_notification",
+                    "toolDefinition": "",
+                    "formToBeSent": {
+                        "notificationId": "",
+                        "notifDetails": ""
+                    },
+                    "sampleForm": [
+                        {
+                            "label": "notificationId",
+                            "type": "string",
+                            "fieldLabel": "notif ID",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        },
+                        {
+                            "label": "notifDetails",
+                            "type": "string",
+                            "fieldLabel": "notification details",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        }
+                    ],
+                    "active": true,
+                    "defaultReportView": true,
+                    "operationType": "CRUD",
+                    "operationSubtype": "CREATE",
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnzmeyoozcwu",
+                            "type": "insertPayload",
+                            "x": 47.333343505859375,
+                            "y": 171.88888549804688,
+                            "payload": "{\n\"notificationId\": \"12345\",\n\"\"notifDetails\": \"hey, you have not provided the wage type description. Can you please provide that\"\n}"
+                        },
+                        {
+                            "id": "nmnzmf0622rox",
+                            "type": "apiCall",
+                            "x": 282.3333435058594,
+                            "y": 4.888885498046875,
+                            "serviceName": "localhost1",
+                            "entitySet": "notification",
+                            "crudType": "READ",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnzmf1irh40g",
+                            "type": "returnObject",
+                            "x": 538.3333435058594,
+                            "y": 114.88888549804688,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnzmeyoozcwu",
+                            "to": "nmnzmf0622rox"
+                        },
+                        {
+                            "from": "nmnzmf0622rox",
+                            "to": "nmnzmf1irh40g"
+                        }
+                    ]
+                }
+            ],
+            "agentBlocks": [
+                {
+                    "_id": "nmnzmcfm3z2av",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>sends notification updates to a server</p>"
+                }
+            ]
+        },
+        {
+            "agentName": "P2PAgent",
+            "agentDefinition": "**Instruction:**\nYou are JSON form filler.\nYou select the tool based on the prompt.\nThe tool returns you a Blank JSON.\nYour task is to fill that JSON with the values provided by user and return it inside a property called filledForm\n\nafter UI fixes\n\nBased on the user query, choose the most appropriate tool from the following map:\n\n- **read_po** - if: Called when the user wants to get the details of a Purchase Order\n\n- **create_po** - if: called when user wants to create a purchase order\n\nReturn the following fields:\n\n- **prompt**: \n- **answer**: \n- **readableAnswer**: \n- **filledForm**: \n- **bigForm**: Default set to true\n- **hasUpload**: Default set to false\n- **masterEntity**: \n- **toolCalled**: \n- **buttons**: >\n\n**Instruction:**\nExample of filledForm-\nPrompt- Get me the details of Purchase order with PO number 1234\nResponse from Tool-\n\n{\n  \"PurchaseOrder\": \"\",\n\"CompanyCode\": \"\"\n}\n\nYou fill it and return inside filled Form\n\n{\n  \"PurchaseOrder\": \"1234\",\n\"CompanyCode\": \"\"\n}\n\nKeep what is not provided blank.\n\n                    One-Shot Example\n\n                    \n                        Prompt:\n                        Get me the details of Purchase order 5567\n                    \n\n                    \n                        Answer:\n                        {\n  \"prompt\": \"Get me the details of Purchase order 5567\",\n  \"answer\": \"getting the PO details, please wait while I formt he payload for querying\",\n  \"readableAnswer\": \"Hey, please wait while I try to get the PO details you requested for\",\n  \"filledForm\": {\n    \"PurchaseOrder\": \"5567\",\n    \"CompanyCode\": \"\"\n  },\n  \"bigForm\": true,\n  \"hasUpload\": false,\n  \"masterEntity\": \"A_PurchaseOrder\",\n  \"toolCalled\": \"read_po\",\n  \"buttons\": [\n    {\n      \"text\": \"\"\n    },\n    {\n      \"text\": \"\"\n    },\n    {\n      \"text\": \"\"\n    }\n  ]\n}\n                    \n\n                \n\n**Restrictions:**\nMake sure the Returned Answer is only JSON\nDO not use tags such as ``JSON",
+            "tools": [
+                {
+                    "toolName": "read_po",
+                    "toolDefinition": "test tool",
+                    "formToBeSent": {
+                        "PurchaseOrder": ""
+                    },
+                    "active": true,
+                    "title": "",
+                    "operationType": "CRUD",
+                    "operationSubtype": "READ",
+                    "apiCalls": [],
+                    "defaultReportView": true,
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "graphNodes": [
+                        {
+                            "id": "nmn50z66kvzff",
+                            "type": "insertPayload",
+                            "x": 10,
+                            "y": 164,
+                            "payload": "{\n  \"id\": 1\n}"
+                        },
+                        {
+                            "id": "nmn50z66k8s6v",
+                            "type": "apiCall",
+                            "x": 295,
+                            "y": 4,
+                            "serviceName": "ExternalRestService",
+                            "entitySet": "posts",
+                            "crudType": "READ",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmn50z66kqw42",
+                            "type": "returnObject",
+                            "x": 600,
+                            "y": 150,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmn50z66kvzff",
+                            "to": "nmn50z66k8s6v"
+                        },
+                        {
+                            "from": "nmn50z66k8s6v",
+                            "to": "nmn50z66kqw42"
+                        }
+                    ]
+                },
+                {
+                    "toolName": "create_po",
+                    "toolDefinition": "",
+                    "formToBeSent": {}
+                }
+            ],
+            "agentBlocks": [
+                {
+                    "_id": "nmna3tzozga6z",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>You are JSON form filler.</p><p>You select the tool based on the prompt.</p><p>The tool returns you a Blank JSON.</p><p>Your task is to fill that JSON with the values provided by user and return it inside a property called filledForm</p><p><br></p><p>after UI fixes</p>"
+                },
+                {
+                    "_id": "nmna3yt24ybv7",
+                    "type": "toolMap",
+                    "header": "Based on the user query, choose the most appropriate tool from the following map:",
+                    "routes": [
+                        {
+                            "targetTool": "read_po",
+                            "condition": "<p>Called when the user wants to get the details of a Purchase Order</p>"
+                        },
+                        {
+                            "targetTool": "create_po",
+                            "condition": "<p>called when user wants to create a purchase order</p>"
+                        }
+                    ]
+                },
+                {
+                    "_id": "nmna3u68fg9et",
+                    "type": "returnFields",
+                    "showJson": false,
+                    "fields": [
+                        {
+                            "name": "prompt",
+                            "description": "<The QUestion asked>"
+                        },
+                        {
+                            "name": "answer",
+                            "description": "<for an answer based on what was asked>"
+                        },
+                        {
+                            "name": "readableAnswer",
+                            "description": "<an answer that can be read out>"
+                        },
+                        {
+                            "name": "filledForm",
+                            "description": "<Mandatory field. The tool will return a blank json. Filled form will contain that same json with the values filled with information provided by the user. Keep the values \"\" if user has not provided. the returned JSON must contain every field returned by the tool>"
+                        },
+                        {
+                            "name": "bigForm",
+                            "description": "Default set to true"
+                        },
+                        {
+                            "name": "hasUpload",
+                            "description": "Default set to false"
+                        },
+                        {
+                            "name": "masterEntity",
+                            "description": ""
+                        },
+                        {
+                            "name": "toolCalled",
+                            "description": "<The tool called. tool name should be exactly same>"
+                        },
+                        {
+                            "name": "buttons",
+                            "description": "<Array of objects with probable answers. Each object will have one property called text:<possible answer>>"
+                        }
+                    ]
+                },
+                {
+                    "_id": "nmna40oxk3nrc",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>Example of filledForm-</p><p>Prompt- Get me the details of Purchase order with PO number 1234</p><p>Response from Tool-</p>"
+                },
+                {
+                    "_id": "nmna3vndegz9l",
+                    "type": "json",
+                    "text": "{\n  \"PurchaseOrder\": \"\",\n\"CompanyCode\": \"\"\n}\n\nYou fill it and return inside filled Form\n\n{\n  \"PurchaseOrder\": \"1234\",\n\"CompanyCode\": \"\"\n}\n\nKeep what is not provided blank."
+                },
+                {
+                    "_id": "nmna41jog3iab",
+                    "type": "oneShot",
+                    "question": "Get me the details of Purchase order 5567",
+                    "prompt": "Get me the details of Purchase order 5567",
+                    "answer": "getting the PO details, please wait while I formt he payload for querying",
+                    "readableAnswer": "Hey, please wait while I try to get the PO details you requested for",
+                    "filledForm": "{\n\n  \"PurchaseOrder\": \"5567\",\n\"CompanyCode\": \"\"\n}",
+                    "bigForm": true,
+                    "hasUpload": false,
+                    "masterEntity": "A_PurchaseOrder",
+                    "toolCalled": "read_po",
+                    "buttons": [
+                        "",
+                        "",
+                        ""
+                    ]
+                },
+                {
+                    "_id": "nmna3y1kb7ft7",
+                    "type": "instruction",
+                    "label": "Restrictions",
+                    "text": "<p>Make sure the Returned Answer is only JSON</p><p>DO not use tags such as ``JSON</p>"
+                }
+            ]
+        },
+        {
+            "agentName": "OTC_Agent",
+            "agentDefinition": "**Instruction:**\nYou are an OTC Agent.",
+            "tools": [
+                {
+                    "toolName": "read_sales_order",
+                    "toolDefinition": "GEts triggered with someone asks for Sales order Details",
+                    "formToBeSent": {
+                        "accessGroupLevel": 0,
+                        "accessUserType": "",
+                        "excludeSelf": false,
+                        "includeSelf": false,
+                        "myFilter": "",
+                        "relationRole": "",
+                        "ruleId": 0,
+                        "status": 0,
+                        "targetGroupLevel": 0,
+                        "targetUserType": "",
+                        "accessGroups": [
+                            {
+                                "activeMembershipCount": 0,
+                                "createdBy": "",
+                                "groupID": 0,
+                                "groupName": "",
+                                "groupType": "",
+                                "lastModifiedDate": "",
+                                "staticGroup": false,
+                                "totalMemberCount": 0,
+                                "userType": ""
+                            }
+                        ]
+                    }
+                },
+                {
+                    "toolName": "read_rbp",
+                    "toolDefinition": "",
+                    "formToBeSent": {
+                        "lastModifiedBy": "",
+                        "lastModifiedDate": "",
+                        "roleDesc": "",
+                        "roleId": 0,
+                        "roleName": "",
+                        "userType": "",
+                        "permissions": [
+                            {
+                                "permissionId": 0,
+                                "permissionLongValue": 0,
+                                "permissionStringValue": "",
+                                "permissionType": ""
+                            }
+                        ],
+                        "rules": [
+                            {
+                                "accessGroupLevel": 0,
+                                "accessUserType": "",
+                                "excludeSelf": false,
+                                "includeSelf": false,
+                                "myFilter": "",
+                                "relationRole": "",
+                                "ruleId": 0,
+                                "status": 0,
+                                "targetGroupLevel": 0,
+                                "targetUserType": ""
+                            }
+                        ]
+                    }
+                }
+            ],
+            "agentBlocks": [
+                {
+                    "_id": "nmnhx320gm7lu",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>You are an OTC Agent.</p>"
+                }
+            ]
+        },
+        {
+            "agentName": "chatAgent",
+            "agentDefinition": "**Instruction:**\nTalk back nicely",
+            "tools": [],
+            "agentBlocks": [
+                {
+                    "_id": "nmn9b995da8q1",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>Talk back nicely</p>"
+                }
+            ]
+        },
+        {
+            "agentName": "asdfasdfasdfsadf",
+            "agentDefinition": "",
+            "tools": [
+                {
+                    "toolName": "gghgffhgh",
+                    "toolDefinition": "",
+                    "formToBeSent": {}
+                }
+            ],
+            "agentBlocks": []
+        },
+        {
+            "agentName": "WageTypeAgent",
+            "agentDefinition": "**Instruction:**\nYou are a Wage Type configuration specialist. Your primary responsibility is to create and manage wage types in the SAP system via API calls.\n\nWhen a user asks to set up, create, or configure a wage type, you MUST use the **create_wage_type** tool.\n\n### TOOL SELECTION RULES:\n1. **create_wage_type**: Use this when the user specifies a new wage type (e.g., 'IIU') or asks for creation. \n2. **get_wage_type**: Use this to check details of an existing wage type.\n3. **get_wagetype_related_data**: Use this for associated configuration data.\n\n### OUTPUT RULES:\n- If you need to call a tool, output ONLY the JSON object.\n- Do NOT provide conversational filler when calling a tool.\n- Once you have the TOOL RESULT, then explain the outcome to the user.",
+            "tools": [
+                {
+                    "toolName": "create_wage_type",
+                    "toolDefinition": "called to create wagetype",
+                    "formToBeSent": {
+                        "wagetype": "",
+                        "description": ""
+                    },
+                    "sampleForm": [
+                        {
+                            "label": "wagetype",
+                            "type": "string",
+                            "fieldLabel": "Wagetype",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        },
+                        {
+                            "label": "description",
+                            "type": "string",
+                            "fieldLabel": "Description",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        }
+                    ],
+                    "active": false,
+                    "defaultReportView": false,
+                    "operationType": "CRUD",
+                    "operationSubtype": "CREATE",
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnyys6fgiqv1",
+                            "type": "insertPayload",
+                            "x": 20,
+                            "y": 142.61111450195312,
+                            "payload": "{\n\"wagetype\": \"1234\",\n\"description\": \"Some wage type\"\n}"
+                        },
+                        {
+                            "id": "nmnyys96h7oc2",
+                            "type": "apiCall",
+                            "x": 313.88885498046875,
+                            "y": 46.65459276282269,
+                            "serviceName": "locahost1",
+                            "entitySet": "wagetype",
+                            "crudType": "CREATE",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnyysbeuxlg7",
+                            "type": "returnObject",
+                            "x": 589.8888549804688,
+                            "y": 97.61111450195312,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnyys6fgiqv1",
+                            "to": "nmnyys96h7oc2"
+                        },
+                        {
+                            "from": "nmnyys96h7oc2",
+                            "to": "nmnyysbeuxlg7"
+                        }
+                    ]
+                },
+                {
+                    "toolName": "get_wage_type",
+                    "toolDefinition": "called to get wage type details against a wageType",
+                    "formToBeSent": {
+                        "wagetype": ""
+                    },
+                    "sampleForm": [
+                        {
+                            "label": "wagetype",
+                            "type": "string",
+                            "fieldLabel": "Wagetype",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        }
+                    ],
+                    "operationType": "CRUD",
+                    "operationSubtype": "READ",
+                    "active": false,
+                    "defaultReportView": false,
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnz0spynbf9x",
+                            "type": "insertPayload",
+                            "x": 0,
+                            "y": 174.8308994459069,
+                            "payload": "{\n\"wagetype\": \"1234\"\n}"
+                        },
+                        {
+                            "id": "nmnz0sv5e5i4h",
+                            "type": "apiCall",
+                            "x": 297.48788584833557,
+                            "y": 47.826086956521735,
+                            "serviceName": "localhost1",
+                            "entitySet": "getWageType",
+                            "crudType": "READ",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnz0t1nqp0bk",
+                            "type": "returnObject",
+                            "x": 569.2270162831181,
+                            "y": 202.0048124893852,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnz0spynbf9x",
+                            "to": "nmnz0sv5e5i4h"
+                        },
+                        {
+                            "from": "nmnz0sv5e5i4h",
+                            "to": "nmnz0t1nqp0bk"
+                        }
+                    ]
+                },
+                {
+                    "toolName": "get_wagetype_related_data",
+                    "toolDefinition": "used to get wage type related data",
+                    "formToBeSent": {
+                        "wagetype": ""
+                    },
+                    "sampleForm": [
+                        {
+                            "label": "wagetype",
+                            "type": "string",
+                            "fieldLabel": "Wagetype",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        }
+                    ],
+                    "operationType": "CRUD",
+                    "operationSubtype": "READ",
+                    "active": true,
+                    "defaultReportView": false,
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnz0v2euealu",
+                            "type": "insertPayload",
+                            "x": 20,
+                            "y": 150.91785596764606,
+                            "payload": "{\"wagetype\": \"1234\"\n}"
+                        },
+                        {
+                            "id": "nmnz0v3f2ni5u",
+                            "type": "apiCall",
+                            "x": 289.8791901961617,
+                            "y": 57.439595098080844,
+                            "serviceName": "localhost1",
+                            "entitySet": "wagetyperelated",
+                            "crudType": "READ",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnz0v4gmn1dq",
+                            "type": "returnObject",
+                            "x": 615.9661467179008,
+                            "y": 149.8308994459069,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnz0v2euealu",
+                            "to": "nmnz0v3f2ni5u"
+                        },
+                        {
+                            "from": "nmnz0v3f2ni5u",
+                            "to": "nmnz0v4gmn1dq"
+                        }
+                    ]
+                }
+            ],
+            "agentBlocks": [
+                {
+                    "_id": "nmnz0xg3aczed",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>You call the following tools under following conditions</p>"
+                },
+                {
+                    "_id": "nmnz0xz7g1pew",
+                    "type": "toolMap",
+                    "header": "Based on the user query, choose the most appropriate tool from the following map:",
+                    "routes": [
+                        {
+                            "targetTool": "create_wage_type",
+                            "condition": "<p>to create a wagetype</p>"
+                        },
+                        {
+                            "targetTool": "get_wage_type",
+                            "condition": "<p>to get details of an existing wage type</p>"
+                        },
+                        {
+                            "targetTool": "get_wagetype_related_data",
+                            "condition": "<p>get details of wage type related details</p>"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "agentName": "servicenowagent",
+            "agentDefinition": "**Instruction:**\nYour task is to get and post updates on service now",
+            "tools": [
+                {
+                    "toolName": "get_snow_detail",
+                    "toolDefinition": "gets called to get the entire details of a Service now incident",
+                    "formToBeSent": {
+                        "SNOWNumber": ""
+                    },
+                    "active": false,
+                    "operationType": "CRUD",
+                    "operationSubtype": "READ",
+                    "defaultReportView": false,
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnz12car8kro",
+                            "type": "insertPayload",
+                            "x": 114.85375655324833,
+                            "y": 245.58477301346625,
+                            "payload": "{\n  \"SNOWNumber\": \"55234\"\n}"
+                        },
+                        {
+                            "id": "nmnz12dag9vc3",
+                            "type": "apiCall",
+                            "x": 439.8537565532482,
+                            "y": 17.95319406609787,
+                            "serviceName": "localhost1",
+                            "entitySet": "getsnowdet",
+                            "crudType": "READ",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnz12f7rt74m",
+                            "type": "returnObject",
+                            "x": 735.9063881321955,
+                            "y": 167.9531940660978,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnz12car8kro",
+                            "to": "nmnz12dag9vc3"
+                        },
+                        {
+                            "from": "nmnz12dag9vc3",
+                            "to": "nmnz12f7rt74m"
+                        }
+                    ]
+                },
+                {
+                    "toolName": "close_snow_update_end",
+                    "toolDefinition": "Close the SNOW incident",
+                    "formToBeSent": {
+                        "SNOWNumber": "",
+                        "CloseRemarks": ""
+                    },
+                    "operationType": "CRUD",
+                    "operationSubtype": "CREATE",
+                    "active": true,
+                    "defaultReportView": false,
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnz13w617hpf",
+                            "type": "insertPayload",
+                            "x": 0,
+                            "y": 129.62468788376606,
+                            "payload": "{\n  \"SNOWNumber\": \"5623\",\n\"CloseRemarks\": \"Wage Type was successfully saved\"\n}"
+                        },
+                        {
+                            "id": "nmnz1499fpky1",
+                            "type": "apiCall",
+                            "x": 310.53136410920513,
+                            "y": 21.32850978685461,
+                            "serviceName": "localhost1",
+                            "entitySet": "closesnow",
+                            "crudType": "CREATE",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnz14grz2xyn",
+                            "type": "returnObject",
+                            "x": 617.0531032396399,
+                            "y": 139.80677065641984,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnz13w617hpf",
+                            "to": "nmnz1499fpky1"
+                        },
+                        {
+                            "from": "nmnz1499fpky1",
+                            "to": "nmnz14grz2xyn"
+                        }
+                    ]
+                },
+                {
+                    "toolName": "update_snow_task",
+                    "toolDefinition": "Update the SNOW ticket with a comment",
+                    "formToBeSent": {
+                        "SNOWNumber": "",
+                        "UpdateRemarks": ""
+                    },
+                    "active": true,
+                    "operationType": "CRUD",
+                    "operationSubtype": "CREATE",
+                    "defaultReportView": false,
+                    "title": "",
+                    "knowledge": "",
+                    "appLink": "",
+                    "staticInstruction": "",
+                    "advancedCodeExec": false,
+                    "apiCalls": [],
+                    "graphNodes": [
+                        {
+                            "id": "nmnz17e6enndj",
+                            "type": "insertPayload",
+                            "x": 26.835711935292125,
+                            "y": 195.48307335895035,
+                            "payload": "{\n  \"SNOWNumber\": \"\",\n\"UpdateRemarks\": \"\"\n}"
+                        },
+                        {
+                            "id": "nmnz17fweltx0",
+                            "type": "apiCall",
+                            "x": 296.40092932659644,
+                            "y": 34.613508141559116,
+                            "serviceName": "localhost1",
+                            "entitySet": "updatesnow",
+                            "crudType": "CREATE",
+                            "apiType": "REST",
+                            "oDataType": "Entity",
+                            "expands": []
+                        },
+                        {
+                            "id": "nmnz17mde2wyf",
+                            "type": "returnObject",
+                            "x": 567.0531032396399,
+                            "y": 148.74394292416778,
+                            "returnType": "default",
+                            "returnLabels": []
+                        }
+                    ],
+                    "graphEdges": [
+                        {
+                            "from": "nmnz17e6enndj",
+                            "to": "nmnz17fweltx0"
+                        },
+                        {
+                            "from": "nmnz17fweltx0",
+                            "to": "nmnz17mde2wyf"
+                        }
+                    ]
+                }
+            ],
+            "agentBlocks": [
+                {
+                    "_id": "nmnz10ekr5otw",
+                    "type": "instruction",
+                    "label": "Instruction",
+                    "text": "<p>Your task is to get and post updates on service now</p>"
+                }
+            ]
+        }
+    ]
+}
