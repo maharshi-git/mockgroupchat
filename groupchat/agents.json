@@ -2,11 +2,11 @@
     "agents": [
         {
             "agentName": "notificationagent",
-            "agentDefinition": "**Instruction:**\nsends notification updates to a server",
+            "agentDefinition": "**Instruction:**\nYou are a Notification Specialist. Your role is to send status updates and alerts to the user whenever a step in the process is completed or if information is missing.\n\n### MANDATORY RULE:\nYou MUST use the 'send_notification' tool for every update. Output ONLY the JSON tool call. Do not provide conversational filler when calling the tool.\n\n### FIELDS:\n- **notificationId**: Use a descriptive ID (e.g., 'SAVE_CONFIRMATION').\n- **notifDetails**: Provide a clear, professional summary of the action taken.",
             "tools": [
                 {
                     "toolName": "send_notification",
-                    "toolDefinition": "",
+                    "toolDefinition": "Sends a status notification to the central holder",
                     "formToBeSent": {
                         "notificationId": "",
                         "notifDetails": ""
@@ -15,7 +15,7 @@
                         {
                             "label": "notificationId",
                             "type": "string",
-                            "fieldLabel": "notif ID",
+                            "fieldLabel": "Notification ID",
                             "mandatory": true,
                             "entity": "",
                             "value": ""
@@ -23,7 +23,7 @@
                         {
                             "label": "notifDetails",
                             "type": "string",
-                            "fieldLabel": "notification details",
+                            "fieldLabel": "Notification Details",
                             "mandatory": true,
                             "entity": "",
                             "value": ""
@@ -45,7 +45,7 @@
                             "type": "insertPayload",
                             "x": 47.333343505859375,
                             "y": 171.88888549804688,
-                            "payload": "{\n\"notificationId\": \"12345\",\n\"\"notifDetails\": \"hey, you have not provided the wage type description. Can you please provide that\"\n}"
+                            "payload": "{\n\"notificationId\": \"\",\n\"notifDetails\": \"\"\n}"
                         },
                         {
                             "id": "nmnzmf0622rox",
@@ -361,14 +361,16 @@
         },
         {
             "agentName": "WageTypeAgent",
-            "agentDefinition": "**Instruction:**\nYou are a Wage Type configuration specialist. Your primary responsibility is to create and manage wage types in the SAP system via API calls.\n\nWhen a user asks to set up, create, or configure a wage type, you MUST use the **create_wage_type** tool.\n\n### TOOL SELECTION RULES:\n1. **create_wage_type**: Use this when the user specifies a new wage type (e.g., 'IIU') or asks for creation. \n2. **get_wage_type**: Use this to check details of an existing wage type.\n3. **get_wagetype_related_data**: Use this for associated configuration data.\n\n### OUTPUT RULES:\n- If you need to call a tool, output ONLY the JSON object.\n- Do NOT provide conversational filler when calling a tool.\n- Once you have the TOOL RESULT, then explain the outcome to the user.",
+            "agentDefinition": "**Instruction:**\nYou are a Wage Type configuration specialist. Your primary responsibility is to create and manage wage types in the SAP system via API calls.\n\n### CRITICAL RULE:\n**DO NOT INVENT WAGE TYPE IDs.** The 'wagetype' ID/Code MUST be explicitly provided by the user.\n\n### MANDATORY FIELDS:\nWhen using **create_wage_type**, you MUST provide:\n1. **wagetype**: The ID provided by the user.\n2. **startdate**: The effective start date (ask user if missing).\n3. **enddate**: The effective end date (usually '9999-12-31' unless user specifies otherwise).\n\n### TOOL SELECTION RULES:\n1. **create_wage_type**: Use this ONLY when you have the ID and dates. You may generate the 'description' field based on context.\n2. **get_wage_type**: Use this to check details of an existing wage type.\n3. **get_wagetype_related_data**: Use this for associated configuration data.\n\n### OUTPUT RULES:\n- If a required field is missing, ask the user for it.\n- If you need to call a tool, output ONLY the JSON object.\n- Do NOT provide conversational filler when calling a tool.\n- Once you have the TOOL RESULT, then explain the outcome to the user.",
             "tools": [
                 {
                     "toolName": "create_wage_type",
                     "toolDefinition": "called to create wagetype",
                     "formToBeSent": {
                         "wagetype": "",
-                        "description": ""
+                        "description": "",
+                        "startdate": "",
+                        "enddate": ""
                     },
                     "sampleForm": [
                         {
@@ -386,9 +388,25 @@
                             "mandatory": true,
                             "entity": "",
                             "value": ""
+                        },
+                        {
+                            "label": "startdate",
+                            "type": "string",
+                            "fieldLabel": "Start Date (YYYY-MM-DD)",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
+                        },
+                        {
+                            "label": "enddate",
+                            "type": "string",
+                            "fieldLabel": "End Date (YYYY-MM-DD)",
+                            "mandatory": true,
+                            "entity": "",
+                            "value": ""
                         }
                     ],
-                    "active": false,
+                    "active": true,
                     "defaultReportView": false,
                     "operationType": "CRUD",
                     "operationSubtype": "CREATE",
@@ -601,7 +619,7 @@
         },
         {
             "agentName": "servicenowagent",
-            "agentDefinition": "**Instruction:**\nYour task is to get and post updates on service now",
+            "agentDefinition": "**Instruction:**\nYou are a ServiceNow Integration Specialist. Your role is to manage technical incidents and tickets related to configuration changes.\n\n### RESPONSIBILITIES:\n1. **get_snow_detail**: Retrieve the full details of an incident to understand the status or history.\n2. **update_snow_task**: Add work notes or comments to a ticket to keep stakeholders informed.\n3. **close_snow_update_end**: Formally close a ticket once the task is fully completed.\n\n### PROTOCOLS:\n- You MUST NOT guess ticket numbers. Use the context from the conversation.\n- When calling a tool, use ONLY the JSON format. Do not provide preamble or explanations.\n- Once you have a result, summarize it for the group chat.",
             "tools": [
                 {
                     "toolName": "get_snow_detail",
@@ -609,7 +627,7 @@
                     "formToBeSent": {
                         "SNOWNumber": ""
                     },
-                    "active": false,
+                    "active": true,
                     "operationType": "CRUD",
                     "operationSubtype": "READ",
                     "defaultReportView": false,
@@ -625,7 +643,7 @@
                             "type": "insertPayload",
                             "x": 114.85375655324833,
                             "y": 245.58477301346625,
-                            "payload": "{\n  \"SNOWNumber\": \"55234\"\n}"
+                            "payload": "{\n  \"SNOWNumber\": \"\"\n}"
                         },
                         {
                             "id": "nmnz12dag9vc3",
@@ -682,7 +700,7 @@
                             "type": "insertPayload",
                             "x": 0,
                             "y": 129.62468788376606,
-                            "payload": "{\n  \"SNOWNumber\": \"5623\",\n\"CloseRemarks\": \"Wage Type was successfully saved\"\n}"
+                            "payload": "{\n  \"SNOWNumber\": \"\",\n\"CloseRemarks\": \"\"\n}"
                         },
                         {
                             "id": "nmnz1499fpky1",

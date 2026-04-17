@@ -100,6 +100,21 @@ const GroupChatState = Annotation.Root({
         reducer: (x, y) => (y !== undefined ? y : x),
         default: () => false,
     }),
+    /** High-level guidance from flows.json flowDescription */
+    flowDirection: Annotation({
+        reducer: (x, y) => (y !== undefined ? y : x),
+        default: () => "",
+    }),
+    /** Detailed orchestration status (complete, PendingWaitingForInput, etc.) */
+    detailedStatus: Annotation({
+        reducer: (x, y) => (y !== undefined ? y : x),
+        default: () => "PendingLookingForSolution",
+    }),
+    /** Current run status: 'running', 'completed', 'interrupted', or 'error' */
+    status: Annotation({
+        reducer: (x, y) => (y !== undefined ? y : x),
+        default: () => "running",
+    }),
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -340,6 +355,33 @@ function buildGroupChatGraph(flowId) {
     // │  Picks which agent should act next, or FINISH.        │
     // └──────────────────────────────────────────────────────┘
     graph.addNode("supervisor", async (state) => {
+        // --- 1. EVALUATION PHASE (The End Condition Agent) ---
+        const evalPrompt = `You are an evaluator checking if a goal has been achieved in a multi-agent conversation.
+GOAL: "${endCondition || "Task completion"}"
+
+Review the conversation and determine if this goal has been FULLY achieved.
+The goal is achieved ONLY when the actual operation completed successfully (e.g., an API returned a success response), not merely discussed or planned.
+
+If achieved, respond with exactly "YES". Otherwise, respond with exactly "NO". No other text.`;
+
+        const evalResponse = await llm.invoke([
+            new SystemMessage(evalPrompt),
+            ...state.messages,
+        ]);
+
+        const isGoalAchieved = evalResponse.content.trim().toUpperCase().startsWith("YES");
+
+        if (isGoalAchieved) {
+            console.log("  [Supervisor] Goal achieved! → complete");
+            return { 
+                nextAgent: "FINISH", 
+                status: "completed", 
+                detailedStatus: "complete",
+                isComplete: true 
+            };
+        }
+
+        // --- 2. ORCHESTRATION PHASE (The Orchestrator Agent) ---
         const agentDescriptions = activeAgents
             .map(
                 (a) =>
@@ -347,54 +389,96 @@ function buildGroupChatGraph(flowId) {
             )
             .join("\n");
 
-        const supervisorPrompt = `You are a supervisor managing a multi-agent group chat to achieve a specific goal.
-
+        const orchPrompt = `You are an Orchestrator managing a group chat to achieve a goal.
 GOAL: ${endCondition}
+FLOW DIRECTION: ${state.flowDirection}
 
 AVAILABLE AGENTS:
 ${agentDescriptions}
 
-Based on the conversation history, decide which agent should act NEXT.
-- If a specific technical task (like creating a wage type) is requested, route to the specialist agent (e.g., WageTypeAgent).
-- Coordination agents (like NotificationAgent or ServiceNowAgent) should only be called to update external systems or notify users AFTER the primary task starts or finishes.
-- If the goal has been fully achieved (verify against conversation history), respond with FINISH.
-- Goal status: ${state.isComplete ? "ALREADY ACHIEVED" : "NOT YET ACHIEVED"}
+### HALLUCINATION GUARD (CRITICAL):
+1. **DO NOT INVENT TECHNICAL DATA.** Never make up wage type IDs, ServiceNow ticket numbers, or dates.
+2. **VERIFY CONTEXT.** Only use technical values if they have been explicitly provided by the user in the conversation history.
+3. **ASK IF MISSING.** If a critical ID or value is missing to proceed, you MUST respond with the USER format.
 
-IMPORTANT: Respond with ONLY THE NAME of the next agent or FINISH.
-Possible values: ${activeAgents.map((a) => a.agentName).join(", ")}, FINISH
+### DECISION RULES:
+Based on the conversation, decide the ONE NEXT step. 
+Output ONLY ONE of these two formats (no preamble, no continuation):
+AGENT: <AgentName> | STATUS: <One of the 4 Statuses>
+USER: <Specific Question for the Human> | STATUS: <One of the 4 Statuses>
 
-No explanation.`;
+Statuses: PendingWaitingForInput, PendingLookingForSolution, FailureLookingForInfo, FailureWaitForUserInput
 
-        const response = await llm.invoke([
-            new SystemMessage(supervisorPrompt),
+### EXAMPLES (OUTPUT ONLY ONE LINE):
+AGENT: WageTypeAgent | STATUS: PendingLookingForSolution
+USER: Please provide the start date for wage type 1001. | STATUS: PendingWaitingForInput`;
+
+        const orchResponse = await llm.invoke([
+            new SystemMessage(orchPrompt),
             ...state.messages,
         ]);
 
-        const content = response.content.trim();
+        const content = orchResponse.content.trim().split('\n')[0]; // Strictly first line
+        console.log(`  [Supervisor] Orchestrator decision: ${content}`);
 
-        // Match agent name from LLM response
         let selectedAgent = "FINISH";
-        for (const name of agentNames) {
-            if (content.toLowerCase().includes(name.toLowerCase())) {
-                selectedAgent = name;
-                break;
+        let detailedStatus = "PendingLookingForSolution";
+        let techStatus = "running";
+        let newMessages = [];
+
+        if (content.toUpperCase().includes("USER:")) {
+            selectedAgent = "waitForInput";
+            techStatus = "interrupted";
+            
+            // Extract the question part
+            const questionMatch = content.match(/USER: (.*?) \| STATUS:/i) || content.match(/USER: (.*)/i);
+            const question = questionMatch ? questionMatch[1] : content;
+            
+            detailedStatus = content.toUpperCase().includes("FAILURE") ? "FailureWaitForUserInput" : "PendingWaitingForInput";
+            
+            // ADD THE QUESTION TO THE MESSAGE HISTORY SO USER SEES IT
+            newMessages.push(new AIMessage(`[Question] ${question}`));
+        } else {
+            // Find which agent was named
+            const sanitizedContent = content.toLowerCase().replace(/[^a-z0-9]/g, "");
+            for (const name of agentNames) {
+                const sanitizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+                if (sanitizedContent.includes(sanitizedName)) {
+                    selectedAgent = name;
+                    break;
+                }
             }
+            detailedStatus = content.toUpperCase().includes("FAILURE") ? "FailureLookingForInfo" : "PendingLookingForSolution";
+            techStatus = "running";
+
+            // Add orchestrator guidance to history for keeping agents on track
+            newMessages.push(new AIMessage(`[Orchestrator] Next step: ${content}`));
         }
 
         // Safety: enforce round limit
         const newRound = (state.roundCount || 0) + 1;
         if (newRound > MAX_ROUNDS) {
-            console.log(
-                `  [Supervisor] ⚠ Max rounds (${MAX_ROUNDS}) reached → FINISH`
-            );
+            console.log(`  [Supervisor] ⚠ Max rounds (${MAX_ROUNDS}) reached → FINISH`);
             selectedAgent = "FINISH";
+            techStatus = "completed";
+            detailedStatus = "complete";
+            return { 
+                nextAgent: "FINISH", 
+                status: "completed", 
+                detailedStatus: "complete", 
+                roundCount: newRound 
+            };
         }
 
-        console.log(
-            `  [Supervisor] Round ${newRound} → ${selectedAgent}`
-        );
-
-        return { nextAgent: selectedAgent, roundCount: newRound };
+        console.log(`  [Supervisor] Round ${newRound} → ${selectedAgent} (Status: ${detailedStatus})`);
+        return { 
+            nextAgent: selectedAgent, 
+            status: techStatus, 
+            detailedStatus, 
+            roundCount: newRound,
+            notificationSent: false, // reset
+            messages: newMessages
+        };
     });
 
     // ┌──────────────────────────────────────────────────────┐
@@ -573,43 +657,7 @@ ${toolCallPrompt}`
         };
     });
 
-    // ┌──────────────────────────────────────────────────────┐
-    // │  NODE: endConditionCheck                              │
-    // │  The "end condition agent" — evaluates whether the    │
-    // │  flow's endCondition goal has been achieved.          │
-    // │  Acts as a supervisor gate before looping back.       │
-    // └──────────────────────────────────────────────────────┘
-    graph.addNode("endConditionCheck", async (state) => {
-        console.log("  [endConditionCheck] Evaluating goal...");
 
-        const evalPrompt = `You are an evaluator checking if a goal has been achieved in a multi-agent conversation.
-
-GOAL: "${endCondition}"
-
-Review the conversation and determine if this goal has been FULLY achieved.
-The goal is achieved ONLY when the actual operation completed successfully
-(e.g., an API returned a success response), not merely discussed or planned.
-
-If no end condition is defined or the condition is empty, default to NO.
-
-Answer with exactly "YES" or "NO". Nothing else.`;
-
-        const response = await llm.invoke([
-            new SystemMessage(evalPrompt),
-            ...state.messages,
-        ]);
-
-        const isComplete = response.content
-            .trim()
-            .toUpperCase()
-            .startsWith("YES");
-
-        console.log(
-            `  [endConditionCheck] Goal achieved: ${isComplete ? "✅ YES" : "❌ NO"}`
-        );
-
-        return { isComplete, notificationSent: false };
-    });
 
     // ═══════════════════════════════════════════════════════
     //  EDGES
@@ -618,11 +666,12 @@ Answer with exactly "YES" or "NO". Nothing else.`;
     // START → supervisor
     graph.addEdge(START, "supervisor");
 
-    // supervisor → agent or END
+    // supervisor → agent, waitForInput, or END
     const routeMap = {};
     for (const agent of activeAgents) {
         routeMap[agent.agentName] = agent.agentName;
     }
+    routeMap["waitForInput"] = "waitForInput";
     routeMap["FINISH"] = END;
 
     graph.addConditionalEdges(
@@ -631,31 +680,20 @@ Answer with exactly "YES" or "NO". Nothing else.`;
         routeMap
     );
 
-    // Each agent → waitForInput (if notification sent) or endConditionCheck
+    // Each agent → waitForInput (if notification sent) or supervisor
     for (const agent of activeAgents) {
         graph.addConditionalEdges(
             agent.agentName,
-            (state) =>
-                state.notificationSent ? "waitForInput" : "endConditionCheck",
+            (state) => state.notificationSent ? "waitForInput" : "supervisor",
             {
                 waitForInput: "waitForInput",
-                endConditionCheck: "endConditionCheck",
+                supervisor: "supervisor",
             }
         );
     }
 
-    // waitForInput → endConditionCheck (after user provides info)
-    graph.addEdge("waitForInput", "endConditionCheck");
-
-    // endConditionCheck → END (goal met) or supervisor (continue)
-    graph.addConditionalEdges(
-        "endConditionCheck",
-        (state) => (state.isComplete ? "finish" : "continue"),
-        {
-            finish: END,
-            continue: "supervisor",
-        }
-    );
+    // waitForInput → supervisor (after user provides info)
+    graph.addEdge("waitForInput", "supervisor");
 
     // ═══════════════════════════════════════════════════════
     //  COMPILE with MemorySaver checkpointer
@@ -706,16 +744,113 @@ function getInterruptData(snapshot) {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Start a new group chat run for a given flow.
- *
- * @param {string} flowId - The flow ID from flows.json
- * @param {string} prompt - The user's initial message
- * @returns {Promise<{runId, status, flowId, messages?, reason?, interruptData?}>}
+ * Common streaming logic for start and resume
  */
-async function startGroupChat(flowId, prompt) {
+async function streamGraph(graph, initialInput, config, onUpdate) {
+    let finalState = null;
+    let runId = config.configurable.thread_id;
+
+    try {
+        const stream = await graph.stream(initialInput, {
+            ...config,
+            streamMode: "values",
+        });
+
+        for await (const value of stream) {
+            finalState = value;
+            if (onUpdate) {
+                // State 3: Trying to find information on my own (Keep loop running)
+                onUpdate({
+                    type: "update",
+                    runId,
+                    status: "running", 
+                    messages: (value.messages || []).map(formatMessage),
+                    nextAgent: value.nextAgent,
+                });
+            }
+        }
+    } catch (err) {
+        if (isInterruptError(err)) {
+            // State 2: Waiting for information from User (End technical loop, wait for resume)
+            let interruptData = [];
+            try {
+                const snapshot = await graph.getState(config);
+                interruptData = getInterruptData(snapshot);
+                finalState = snapshot.values;
+                await graph.updateState(config, { status: "interrupted" });
+            } catch { }
+
+            console.log(`\n⏸ [State: Waiting for User] RunID: ${runId}`);
+
+            const lastMsg = finalState?.messages?.[finalState.messages.length - 1];
+            const reason = lastMsg?.content || finalState?.detailedStatus || "Action Required";
+
+            const result = {
+                configId: runId, // mapped for persistence
+                status: "interrupted",
+                detailedStatus: finalState?.detailedStatus || "PendingWaitingForInput",
+                reason: reason,
+                interruptData,
+                messages: (finalState?.messages || []).map(formatMessage),
+            };
+            if (onUpdate) onUpdate({ type: "result", ...result });
+            return result;
+        }
+
+        // State 4: Error (End the loop)
+        console.error(`\n❌ [State: Error] RunID: ${runId}\n`, err);
+        try {
+            await graph.updateState(config, { status: "error" });
+        } catch {}
+        
+        const errorResult = {
+            runId,
+            status: "error",
+            message: err.message,
+            messages: (finalState?.messages || []).map(formatMessage),
+        };
+        if (onUpdate) onUpdate({ type: "error", ...errorResult });
+        return errorResult;
+    }
+
+    // Check for manual interrupt return
+    try {
+        const snapshot = await graph.getState(config);
+        const pendingInterrupts = getInterruptData(snapshot);
+        if (pendingInterrupts.length > 0) {
+            // State 2 (Manual check)
+            const result = {
+                runId,
+                status: "interrupted",
+                reason: "Awaiting user input — action required",
+                interruptData: pendingInterrupts,
+                messages: (snapshot.values?.messages || []).map(formatMessage),
+            };
+            await graph.updateState(config, { status: "interrupted" });
+            if (onUpdate) onUpdate({ type: "result", ...result });
+            return result;
+        }
+    } catch { }
+
+    // State 1: Completion (End the loop)
+    console.log(`\n✅ [State: Completion] RunID: ${runId}`);
+    await graph.updateState(config, { status: "completed" });
+    const finalResult = {
+        configId: runId, // mapped for persistence
+        status: "completed",
+        detailedStatus: finalState?.detailedStatus || "complete",
+        messages: (finalState?.messages || []).map(formatMessage),
+    };
+    if (onUpdate) onUpdate({ type: "result", ...finalResult });
+    return finalResult;
+}
+
+/**
+ * Start a new group chat run for a given flow.
+ */
+async function startGroupChat(flowId, prompt, onUpdate) {
     const runId = generateRunId();
     const graph = getCompiledGraph(flowId);
-
     const flow = flowsConfig.flows.find((f) => f.flowID === flowId);
     const gcNode = flow?.nodes.find((n) => n.type === "groupchat");
 
@@ -724,147 +859,52 @@ async function startGroupChat(flowId, prompt) {
         recursionLimit: 80,
     };
 
-    console.log(`\n${"═".repeat(60)}`);
-    console.log(`  Starting Group Chat`);
-    console.log(`  Flow:      ${flow?.flowName || flowId}`);
-    console.log(`  RunID:     ${runId}`);
-    console.log(`  Agents:    ${gcNode?.agents?.join(", ")}`);
-    console.log(`  Goal:      ${gcNode?.endCondition || "(none)"}`);
-    console.log(`  Prompt:    ${prompt}`);
-    console.log(`${"═".repeat(60)}\n`);
+    console.log(`\n🚀 [Start] RunID: ${runId} | Flow: ${flowId}`);
 
-    let result;
-    try {
-        result = await graph.invoke(
-            {
-                messages: [new HumanMessage(prompt)],
-                endCondition: gcNode?.endCondition || "",
-            },
-            config
-        );
-    } catch (err) {
-        if (isInterruptError(err)) {
-            let interruptData = [];
-            try {
-                const snapshot = await graph.getState(config);
-                interruptData = getInterruptData(snapshot);
-            } catch { }
-
-            console.log(`\n  ⏸ Graph interrupted. RunID: ${runId}\n`);
-
-            return {
-                runId,
-                status: "interrupted",
-                flowId,
-                reason: "Awaiting user input — notification was sent",
-                interruptData,
-            };
-        }
-        throw err;
-    }
-
-    // Check if the graph stopped at an interrupt (some versions return instead of throw)
-    try {
-        const snapshot = await graph.getState(config);
-        const pendingInterrupts = getInterruptData(snapshot);
-        if (pendingInterrupts.length > 0) {
-            console.log(`\n  ⏸ Graph interrupted. RunID: ${runId}\n`);
-            return {
-                runId,
-                status: "interrupted",
-                flowId,
-                reason: "Awaiting user input — notification was sent",
-                interruptData: pendingInterrupts,
-                messages: (result.messages || []).map(formatMessage),
-            };
-        }
-    } catch { }
-
-    console.log(`\n  ✅ Group chat completed. RunID: ${runId}\n`);
-
-    return {
-        runId,
-        status: "completed",
-        flowId,
-        messages: (result.messages || []).map(formatMessage),
-    };
+    return streamGraph(
+        graph,
+        {
+            messages: [new HumanMessage(prompt)],
+            endCondition: gcNode?.endCondition || "",
+            flowDirection: flow?.flowDescription || "",
+            detailedStatus: "PendingLookingForSolution",
+        },
+        config,
+        onUpdate
+    );
 }
 
 /**
  * Resume a paused group chat run with user-provided input.
- * The graph picks up from the interrupt point (same thread_id).
- *
- * @param {string} flowId  - The flow ID (needed to get the compiled graph)
- * @param {string} runId   - The runId returned from the initial startGroupChat call
- * @param {string} userInput - The information the user is providing
- * @returns {Promise<{runId, status, flowId, messages?, reason?, interruptData?}>}
  */
-async function resumeGroupChat(flowId, runId, userInput) {
+async function resumeGroupChat(flowId, runId, userInput, onUpdate) {
     const graph = getCompiledGraph(flowId);
-
     const config = {
         configurable: { thread_id: runId },
         recursionLimit: 80,
     };
 
-    console.log(`\n${"═".repeat(60)}`);
-    console.log(`  Resuming Group Chat`);
-    console.log(`  RunID:      ${runId}`);
-    console.log(`  User Input: ${userInput}`);
-    console.log(`${"═".repeat(60)}\n`);
-
-    let result;
+    // Prevent resuming completed runs
     try {
-        result = await graph.invoke(
-            new Command({ resume: userInput }),
-            config
-        );
-    } catch (err) {
-        if (isInterruptError(err)) {
-            let interruptData = [];
-            try {
-                const snapshot = await graph.getState(config);
-                interruptData = getInterruptData(snapshot);
-            } catch { }
-
-            console.log(`\n  ⏸ Graph interrupted again. RunID: ${runId}\n`);
-
-            return {
-                runId,
-                status: "interrupted",
-                flowId,
-                reason: "Awaiting more user input",
-                interruptData,
-            };
+        const state = await graph.getState(config);
+        if (state.values?.status === "completed") {
+            const err = new Error("Cannot resume a completed flow.");
+            if (onUpdate) onUpdate({ type: "error", message: err.message });
+            throw err;
         }
-        throw err;
+    } catch (e) {
+        if (e.message === "Cannot resume a completed flow.") throw e;
+        // ignore other state errors (e.g. run doesn't exist yet)
     }
 
-    // Check for another interrupt
-    try {
-        const snapshot = await graph.getState(config);
-        const pendingInterrupts = getInterruptData(snapshot);
-        if (pendingInterrupts.length > 0) {
-            console.log(`\n  ⏸ Graph interrupted again. RunID: ${runId}\n`);
-            return {
-                runId,
-                status: "interrupted",
-                flowId,
-                reason: "Awaiting more user input",
-                interruptData: pendingInterrupts,
-                messages: (result.messages || []).map(formatMessage),
-            };
-        }
-    } catch { }
+    console.log(`\n▶ [Resume] RunID: ${runId}`);
 
-    console.log(`\n  ✅ Group chat completed after resume. RunID: ${runId}\n`);
-
-    return {
-        runId,
-        status: "completed",
-        flowId,
-        messages: (result.messages || []).map(formatMessage),
-    };
+    return streamGraph(
+        graph,
+        new Command({ resume: userInput }),
+        config,
+        onUpdate
+    );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -878,60 +918,90 @@ module.exports = {
     checkpointer,
 };
 
-// ═══════════════════════════════════════════════════════════
-//  Runner — execute directly with: node groupchat.js
-// ═══════════════════════════════════════════════════════════
+const express = require("express");
+const cors = require("cors");
+const http = require("http");
+const WebSocket = require("ws");
 
-if (require.main === module) {
-    (async () => {
-        // Pick the first flow from flows.json
-        const flowId = flowsConfig.flows[2]?.flowID;
-        if (!flowId) {
-            console.error("❌ No flows found in flows.json");
-            process.exit(1);
-        }
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-        const prompt = "set up wage type";
+app.use(cors());
+app.use(express.json());
 
-        console.log("\n🚀 Running group chat flow directly...\n");
+// Serve the flow initiator UI
+app.use(express.static(path.join(__dirname, "..", "flowinitiator")));
 
+/**
+ * Endpoint to list available flows (still useful for UI init)
+ */
+app.get("/api/flows", (req, res) => {
+    res.json(flowsConfig.flows.map(f => ({
+        flowID: f.flowID,
+        flowName: f.flowName,
+        flowDescription: f.flowDescription
+    })));
+});
+
+// WebSocket Configuration
+wss.on("connection", (ws) => {
+    console.log("🔌 New WebSocket connection established");
+
+    ws.on("message", async (message) => {
+        let data;
         try {
-            const result = await startGroupChat(flowId, prompt);
-
-            console.log("\n" + "─".repeat(60));
-            console.log("  📋 FINAL RESULT");
-            console.log("─".repeat(60));
-            console.log("  Run ID:  ", result.runId);
-            console.log("  Status:  ", result.status);
-            console.log("  Flow ID: ", result.flowId);
-
-            if (result.reason) {
-                console.log("  Reason:  ", result.reason);
-            }
-
-            if (result.interruptData?.length) {
-                console.log("  Interrupt Data:");
-                result.interruptData.forEach((d, i) =>
-                    console.log(`    [${i}]`, JSON.stringify(d, null, 2))
-                );
-            }
-
-            if (result.messages?.length) {
-                console.log(`\n  💬 Messages (${result.messages.length}):`);
-                result.messages.forEach((msg, i) => {
-                    const nameTag = msg.name ? ` (${msg.name})` : "";
-                    const preview = (msg.content || "").substring(0, 150);
-                    console.log(`    [${i}] ${msg.role}${nameTag}: ${preview}${msg.content?.length > 150 ? "..." : ""}`);
-                });
-            }
-
-            console.log("\n" + "─".repeat(60));
-            console.log("  Full result JSON:\n");
-            console.log(JSON.stringify(result, null, 2));
-        } catch (err) {
-            console.error("\n❌ Error running group chat:", err.message);
-            console.error(err.stack);
-            process.exit(1);
+            data = JSON.parse(message);
+        } catch (e) {
+            return ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
         }
-    })();
-}
+
+        const { type, flowId, prompt, runId, configId, userInput } = data;
+        const targetId = runId || configId;
+
+        const onUpdate = (update) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ ...update, flowId }));
+            }
+        };
+
+        if (type === "start") {
+            try {
+                await startGroupChat(flowId, prompt, onUpdate);
+            } catch (err) {
+                onUpdate({ type: "error", message: err.message });
+            }
+        } 
+        
+        else if (type === "resume") {
+            try {
+                await resumeGroupChat(flowId, targetId, userInput, onUpdate);
+            } catch (err) {
+                onUpdate({ type: "error", message: err.message });
+            }
+        }
+    });
+
+    ws.on("close", () => {
+        console.log("🔌 WebSocket connection closed");
+    });
+});
+
+const PORT = 3002;
+server.listen(PORT, () => {
+    console.log(`\n🚀 Group Chat Engine (Streaming) listening at http://localhost:${PORT}`);
+    console.log(`💻 Flow Initiator UI: http://localhost:${PORT}/index.html`);
+});
+
+/**
+ * Enhanced logging for interrupts to ensure the UI knows it happened.
+ * The return structures of startGroupChat and resumeGroupChat already 
+ * include 'interrupted' status, which we send back via WebSocket.
+ */
+
+module.exports = {
+    startGroupChat,
+    resumeGroupChat,
+    buildGroupChatGraph,
+    checkpointer,
+};

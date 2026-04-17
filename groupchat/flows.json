@@ -1,95 +1,9 @@
 {
     "flows": [
         {
-            "flowID": "mnvcps8vvsuog4",
-            "flowName": "Test Flow",
-            "flowDescription": "A simple test flow for verification.",
-            "nodes": [
-                {
-                    "id": "start_mnvcps8vsgqeos",
-                    "type": "start",
-                    "x": 80,
-                    "y": 260,
-                    "label": "Start"
-                },
-                {
-                    "id": "end_mnvcps8vgfyqcn",
-                    "type": "end",
-                    "x": 731,
-                    "y": 286,
-                    "label": "End"
-                },
-                {
-                    "id": "mnvcqamtskhu5n",
-                    "type": "groupchat",
-                    "x": 301,
-                    "y": 200,
-                    "agents": [
-                        "P2PAgent",
-                        "OTC_Agent",
-                        "testagent"
-                    ],
-                    "endCondition": "when a purchase order successfully gets created"
-                }
-            ],
-            "edges": [
-                {
-                    "from": "start_mnvcps8vsgqeos",
-                    "to": "mnvcqamtskhu5n"
-                },
-                {
-                    "from": "mnvcqamtskhu5n",
-                    "to": "end_mnvcps8vgfyqcn"
-                }
-            ]
-        },
-        {
-            "flowID": "mnw840kk3iq05y",
-            "flowName": "testflow2",
-            "flowDescription": "test",
-            "nodes": [
-                {
-                    "id": "start_mnw840kkfta0si",
-                    "type": "start",
-                    "x": 80,
-                    "y": 260,
-                    "label": "Start"
-                },
-                {
-                    "id": "end_mnw840kkiiuzcw",
-                    "type": "end",
-                    "x": 659,
-                    "y": 132,
-                    "label": "End"
-                },
-                {
-                    "id": "mnw849zmhyk22b",
-                    "type": "groupchat",
-                    "x": 319,
-                    "y": 270,
-                    "agents": [
-                        "SAPWageTypeAgent",
-                        "SNOWAgent",
-                        "NotificationAgent"
-                    ],
-                    "endCondition": ""
-                }
-            ],
-            "edges": [
-                {
-                    "from": "start_mnw840kkfta0si",
-                    "to": "mnw849zmhyk22b"
-                },
-                {
-                    "from": "mnw849zmhyk22b",
-                    "to": "end_mnw840kkiiuzcw"
-                }
-            ]
-        },
-        {
             "flowID": "mnyygg2y9zmjbq",
             "flowName": "Wage Type Configuration",
-            "flowDescription": "THe agentic flow is used for setting up wage types",
+            "flowDescription": "This agentic flow manages the end-to-end setup of wage types. Sequence: 1. Use WageTypeAgent to create or query the wage type. 2. Use servicenowagent to update or close the related technical ticket. 3. Use notificationagent to send a final completion alert to the user. For every step, use notificationagent if critical info is missing.",
             "nodes": [
                 {
                     "id": "start_mnyygg2yt9anjz",
@@ -115,7 +29,7 @@
                         "servicenowagent",
                         "notificationagent"
                     ],
-                    "endCondition": "Completion when wage type gets successfully posted"
+                    "endCondition": "wage type is created + notification of completion is sent + service now task closed"
                 }
             ],
             "edges": [

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow Initiator | Group Chat Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #06b6d4;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: calc(100vh - 4rem);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .flow-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .flow-item {
+            padding: 1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .flow-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--glass-border);
+        }
+
+        .flow-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+        }
+
+        .flow-item h3 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .flow-item p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: calc(100vh - 4rem);
+        }
+
+        .chat-container {
+            flex: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 1rem 1.25rem;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.human {
+            align-self: flex-end;
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            align-self: center;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            max-width: 100%;
+        }
+
+        .message-author {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
+        }
+
+        /* Input Area */
+        .input-area {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+
+        textarea {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1rem;
+            color: white;
+            resize: none;
+            height: 56px;
+            max-height: 200px;
+            outline: none;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        textarea:focus {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--primary);
+        }
+
+        .send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Status Indicator */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.interrupted {
+            background: rgba(234, 179, 8, 0.1);
+            color: #eab308;
+        }
+
+        /* Tooltip-like Interrupt UI */
+        .interrupt-box {
+            padding: 1rem;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 16px;
+            margin-top: 1rem;
+        }
+
+        .interrupt-box h4 {
+            color: #eab308;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .interrupt-box p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">GroupChat Engine</div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Select a flow to initiate agentic orchestration.</p>
+        
+        <div class="flow-list" id="flowList">
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">Loading flows...</div>
+        </div>
+
+        <div id="currentStatus" style="display: none;">
+            <div class="status-badge" id="statusBadge">Ready</div>
+        </div>
+
+        <div style="margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+            <a href="notifications.html" target="_blank" style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                View Notifications
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="chat-container" id="chatOutput">
+            <div class="message system">Welcome. Please pick a flow and enter your initial prompt to start.</div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="userInput" placeholder="Type your prompt here..."></textarea>
+            <button class="send-btn" id="sendBtn" title="Send message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const flowListEl = document.getElementById('flowList');
+        const chatOutputEl = document.getElementById('chatOutput');
+        const userInputEl = document.getElementById('userInput');
+        const sendBtnEl = document.getElementById('sendBtn');
+        const statusBadgeEl = document.getElementById('statusBadge');
+        const currentStatusEl = document.getElementById('currentStatus');
+
+        let selectedFlowId = null;
+        let currentRunId = null;
+        let isProcessing = false;
+        let isInterrupted = false;
+
+        // WebSocket Setup
+        let socket = null;
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = new WebSocket(`${protocol}//${window.location.host}`);
+
+            socket.onopen = () => {
+                console.log('Connected to Group Chat WebSocket');
+                appendMessage('system', 'Connection established');
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                if (data.type === 'update' || data.type === 'result') {
+                    handleResponse(data);
+                    if (data.type === 'result') setLoading(false);
+                } else if (data.type === 'error') {
+                    appendMessage('system', 'Error: ' + data.message);
+                    setLoading(false);
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('WebSocket disconnected. Reconnecting...');
+                setLoading(false);
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // Auto-resize textarea
+        userInputEl.addEventListener('input', () => {
+            userInputEl.style.height = 'auto';
+            userInputEl.style.height = Math.min(userInputEl.scrollHeight, 200) + 'px';
+        });
+
+        // Load flows on init
+        async function loadFlows() {
+            try {
+                const resp = await fetch('/api/flows');
+                const flows = await resp.json();
+                
+                flowListEl.innerHTML = '';
+                flows.forEach(flow => {
+                    const div = document.createElement('div');
+                    div.className = 'flow-item';
+                    div.innerHTML = `
+                        <h3>${flow.flowName}</h3>
+                        <p>${flow.flowDescription || 'No description provided'}</p>
+                    `;
+                    div.onclick = () => selectFlow(flow.flowID, div);
+                    flowListEl.appendChild(div);
+                });
+            } catch (err) {
+                flowListEl.innerHTML = `<div style="color: #ef4444; padding: 1rem;">Failed to load flows.</div>`;
+            }
+        }
+
+        function selectFlow(flowId, element) {
+            document.querySelectorAll('.flow-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            selectedFlowId = flowId;
+            currentRunId = null;
+            isInterrupted = false;
+            userInputEl.focus();
+        }
+
+        function appendMessage(role, content, author = null) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            if (author) {
+                const authorSpan = document.createElement('span');
+                authorSpan.className = 'message-author';
+                authorSpan.innerText = author;
+                div.appendChild(authorSpan);
+            }
+
+            const contentDiv = document.createElement('div');
+            // Basic markdown handling for code blocks
+            if (content && content.includes('```')) {
+                const parts = content.split('```');
+                parts.forEach((part, index) => {
+                    if (index % 2 === 1) {
+                        const pre = document.createElement('pre');
+                        pre.style.background = 'rgba(0,0,0,0.3)';
+                        pre.style.padding = '1rem';
+                        pre.style.borderRadius = '8px';
+                        pre.style.margin = '0.5rem 0';
+                        pre.style.overflowX = 'auto';
+                        pre.innerText = part.replace(/^json\n/, '');
+                        contentDiv.appendChild(pre);
+                    } else {
+                        const span = document.createElement('span');
+                        span.innerText = part;
+                        contentDiv.appendChild(span);
+                    }
+                });
+            } else {
+                contentDiv.innerText = content || '';
+            }
+            
+            div.appendChild(contentDiv);
+            chatOutputEl.appendChild(div);
+            chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
+        }
+
+        async function handleSend() {
+            const prompt = userInputEl.value.trim();
+            if (!prompt || isProcessing) return;
+            if (!selectedFlowId) {
+                alert('Please select a flow from the sidebar first.');
+                return;
+            }
+
+            if (socket.readyState !== WebSocket.OPEN) {
+                appendMessage('system', 'Connection lost. Please wait...');
+                return;
+            }
+
+            setLoading(true);
+            appendMessage('human', prompt);
+            userInputEl.value = '';
+            userInputEl.style.height = '56px';
+
+            const payload = isInterrupted 
+                ? { type: 'resume', flowId: selectedFlowId, runId: currentRunId, userInput: prompt }
+                : { type: 'start', flowId: selectedFlowId, prompt: prompt };
+
+            socket.send(JSON.stringify(payload));
+        }
+
+        function handleResponse(data) {
+            currentRunId = data.conversation_id || data.runId;
+            currentStatusEl.style.display = 'block';
+
+            // Common message rendering for all status types
+            if (data.messages && data.messages.length > 0) {
+                chatOutputEl.innerHTML = '';
+                data.messages.forEach(msg => {
+                    appendMessage(msg.role, msg.content, msg.name);
+                });
+            }
+
+            if (data.status === 'interrupted') {
+                isInterrupted = true;
+                statusBadgeEl.innerText = 'Interrupt: Awaiting User Input';
+                statusBadgeEl.className = 'status-badge interrupted';
+                
+                const interruptDiv = document.createElement('div');
+                interruptDiv.className = 'interrupt-box';
+                interruptDiv.innerHTML = `
+                    <h4>Action Required</h4>
+                    <p>${data.reason || 'The agent needs more information from you.'}</p>
+                    <small style="opacity: 0.5;">Run ID: ${currentRunId}</small>
+                `;
+                chatOutputEl.appendChild(interruptDiv);
+                chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
+
+            } else if (data.status === 'completed') {
+                isInterrupted = false;
+                statusBadgeEl.innerText = 'Flow Completed';
+                statusBadgeEl.className = 'status-badge';
+                appendMessage('system', '─ Graph reached END ─');
+            } else if (data.status === 'running') {
+                statusBadgeEl.innerText = 'Agents are working...';
+                statusBadgeEl.className = 'status-badge';
+            }
+        }
+
+        function setLoading(loading) {
+            isProcessing = loading;
+            sendBtnEl.disabled = loading;
+            if (loading) {
+                sendBtnEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinning"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>`;
+            } else {
+                sendBtnEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`;
+            }
+        }
+
+        sendBtnEl.onclick = handleSend;
+        userInputEl.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        };
+
+        loadFlows();
+        connectWebSocket();
+    </script>
+    <style>
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html>

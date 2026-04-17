@@ -1,14 +1,32 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // ===== Wage Type Endpoints =====
 
 app.post("/wagetype", (req, res) => {
     console.log("[MOCK] POST /wagetype:", JSON.stringify(req.body));
+    const { wagetype, startdate, enddate } = req.body;
+
+    const missing = [];
+    if (!wagetype) missing.push("wagetype");
+    if (!startdate) missing.push("startdate");
+    if (!enddate) missing.push("enddate");
+
+    if (missing.length > 0) {
+        return res.status(400).json({
+            status: "error",
+            message: `Missing mandatory fields: ${missing.join(", ")}`,
+        });
+    }
+
     res.json({
         status: "success",
-        message: `Wage type '${req.body.wagetype || "unknown"}' created successfully`,
+        message: `Wage type '${wagetype}' created successfully`,
+        validFrom: startdate,
+        validTo: enddate,
         data: req.body,
         timestamp: new Date().toISOString(),
     });
@@ -16,22 +34,42 @@ app.post("/wagetype", (req, res) => {
 
 app.get("/getWageType", (req, res) => {
     console.log("[MOCK] GET /getWageType:", JSON.stringify(req.query));
+    const wt = req.query.wagetype;
+    
+    const db = {
+        "0001": { description: "Regular Salary", status: "active", country: "US", group: "Base Pay" },
+        "0002": { description: "Annual Bonus", status: "active", country: "US", group: "Additional Pay" },
+        "1001": { description: "Housing Allowance", status: "active", country: "US", group: "Allowances" },
+        "5000": { description: "Health Insurance Deduction", status: "restricted", country: "DE", group: "Deductions" }
+    };
+
+    const data = db[wt] || { description: "Custom Wage Type", status: "unknown", country: "Global", group: "General" };
+
     res.json({
-        wagetype: req.query.wagetype || "0000",
-        description: "Monthly Base Salary",
-        status: "active",
-        country: "US",
+        wagetype: wt || "0000",
+        ...data,
         createdAt: "2024-01-15T10:30:00Z",
     });
 });
 
 app.get("/wagetyperelated", (req, res) => {
     console.log("[MOCK] GET /wagetyperelated:", JSON.stringify(req.query));
+    const wt = req.query.wagetype;
+
+    const relations = {
+        "0001": [
+            { relationType: "pension_eligible", relatedWagetype: "9000", description: "Pension Base" },
+            { relationType: "tax_reference", relatedWagetype: "T001", description: "Federal Tax" }
+        ],
+        "1001": [
+            { relationType: "linked_base", relatedWagetype: "0001", description: "Calculated on base" }
+        ]
+    };
+
     res.json({
-        wagetype: req.query.wagetype || "0000",
-        relatedData: [
-            { relationType: "base_wage", relatedWagetype: "1001", description: "Base component" },
-            { relationType: "tax_wage", relatedWagetype: "2001", description: "Tax component" },
+        wagetype: wt || "0000",
+        relatedData: relations[wt] || [
+            { relationType: "generic", relatedWagetype: "9999", description: "Standard mapping" }
         ],
     });
 });
@@ -71,25 +109,34 @@ app.post("/updatesnow", (req, res) => {
 });
 
 // ===== Notification Endpoints =====
+const notifications = [];
+
+app.get("/api/notifications", (req, res) => {
+    res.json(notifications);
+});
 
 app.get("/notification", (req, res) => {
     console.log("[MOCK] GET /notification:", JSON.stringify(req.query));
-    res.json({
-        status: "sent",
-        notificationId: req.query.notificationId || "N/A",
-        notifDetails: req.query.notifDetails || "",
+    const notif = {
+        id: req.query.notificationId || `N-${Date.now()}`,
+        details: req.query.notifDetails || "",
         sentAt: new Date().toISOString(),
-    });
+        method: "GET"
+    };
+    notifications.unshift(notif);
+    res.json({ status: "sent", ...notif });
 });
 
 app.post("/notification", (req, res) => {
     console.log("[MOCK] POST /notification:", JSON.stringify(req.body));
-    res.json({
-        status: "sent",
-        notificationId: req.body.notificationId || "N/A",
-        notifDetails: req.body.notifDetails || "",
+    const notif = {
+        id: req.body.notificationId || `N-${Date.now()}`,
+        details: req.body.notifDetails || "",
         sentAt: new Date().toISOString(),
-    });
+        method: "POST"
+    };
+    notifications.unshift(notif);
+    res.json({ status: "sent", ...notif });
 });
 
 // ===== Generic REST (for ExternalRestService / P2PAgent) =====
