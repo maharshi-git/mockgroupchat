@@ -863,12 +863,17 @@ async function streamGraph(graph, initialInput, config, onUpdate) {
             } catch { }
 
             console.log(`\n⏸ [State: Waiting for User] RunID: ${runId}`);
+            console.log(`  [Interrupt] interruptData count: ${interruptData.length}`);
+            if (interruptData.length > 0) {
+                console.log(`  [Interrupt] types: ${interruptData.map(d => d?.type || 'unknown').join(', ')}`);
+            }
 
             const lastMsg = finalState?.messages?.[finalState.messages.length - 1];
             const reason = lastMsg?.content || finalState?.detailedStatus || "Action Required";
 
             const result = {
-                configId: runId, // mapped for persistence
+                runId,
+                configId: runId, // backward compat
                 status: "interrupted",
                 detailedStatus: finalState?.detailedStatus || "PendingWaitingForInput",
                 reason: reason,
@@ -895,14 +900,17 @@ async function streamGraph(graph, initialInput, config, onUpdate) {
         return errorResult;
     }
 
-    // Check for manual interrupt return
+    // Check for manual interrupt return (cooperative interrupt — stream ended without error)
     try {
         const snapshot = await graph.getState(config);
         const pendingInterrupts = getInterruptData(snapshot);
+        console.log(`  [Post-stream] Checking for pending interrupts: ${pendingInterrupts.length}`);
         if (pendingInterrupts.length > 0) {
+            console.log(`  [Post-stream] Interrupt types: ${pendingInterrupts.map(d => d?.type || 'unknown').join(', ')}`);
             // State 2 (Manual check)
             const result = {
                 runId,
+                configId: runId, // backward compat
                 status: "interrupted",
                 reason: "Awaiting user input — action required",
                 interruptData: pendingInterrupts,
