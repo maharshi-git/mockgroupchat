@@ -489,6 +489,14 @@ USER: Please provide the start date for wage type 1001. | STATUS: PendingWaiting
     // │    - We parse it, execute the API pipeline, and       │
     // │      feed the result back for a final answer          │
     // │  Sets notificationSent=true if send_notification used │
+    // │                                                        │
+    // │  FORM-BASED TOOL COMPLETION:                           │
+    // │    If the LLM emits a tool call but mandatory fields   │
+    // │    are missing, the graph interrupts and sends the     │
+    // │    incomplete form (pre-filled with known values) to   │
+    // │    the UI. The user fills in the blanks via a          │
+    // │    structured form. On resume, the completed args are  │
+    // │    used directly — no further LLM calls needed.        │
     // └──────────────────────────────────────────────────────┘
     for (const agent of activeAgents) {
         const { toolDescriptions, toolLookup } =
@@ -514,6 +522,8 @@ IMPORTANT:
 - Use the exact "toolCall" name from the list above.
 - Provide all required arguments in the "args" object.
 - Fill in the args with values from the conversation history.
+- If a value is not available in the conversation, still include the field with an empty string "".
+- ALWAYS include ALL fields from the tool definition in your args, even if empty.
 - If you have already executed a tool and have the result, you can provide a text response to the user.`;
             }
 
@@ -553,7 +563,7 @@ ${toolCallPrompt}`
                     break;
                 }
 
-                // We have a tool call — execute it
+                // We have a tool call — look up the tool config
                 console.log(
                     `  [${agent.agentName}] Tool call: ${toolCall.name}(${JSON.stringify(toolCall.args)})`
                 );
@@ -575,13 +585,85 @@ ${toolCallPrompt}`
                     continue;
                 }
 
-                // Execute the API pipeline for this tool
+                // ─────────────────────────────────────────────────
+                //  FORM-BASED TOOL COMPLETION:
+                //  Check if the tool has a sampleForm and whether
+                //  any mandatory fields are missing from the args.
+                //  If so, interrupt the graph and send the form
+                //  metadata to the UI so the user can fill it in.
+                // ─────────────────────────────────────────────────
+                let finalArgs = toolCall.args;
+
+                if (toolConfig.sampleForm?.length) {
+                    const missingFields = toolConfig.sampleForm.filter(f =>
+                        f.mandatory && (!toolCall.args[f.label] || String(toolCall.args[f.label]).trim() === "")
+                    );
+
+                    if (missingFields.length > 0) {
+                        console.log(
+                            `  [${agent.agentName}] ⚠ Missing mandatory fields for ${toolCall.name}: ${missingFields.map(f => f.label).join(", ")}`
+                        );
+
+                        // Build the pre-filled sampleForm with whatever the LLM provided
+                        const preFilledForm = toolConfig.sampleForm.map(f => ({
+                            ...f,
+                            value: toolCall.args[f.label] != null ? String(toolCall.args[f.label]) : ""
+                        }));
+
+                        // Add a message so the user sees what happened
+                        newMessages.push(
+                            new AIMessage({
+                                content: `[${agent.agentName}] I need to call "${toolCall.name}" but some required fields are missing: ${missingFields.map(f => f.fieldLabel || f.label).join(", ")}. Please fill in the form below.`,
+                                name: agent.agentName,
+                            })
+                        );
+
+                        // INTERRUPT — send the form + tool metadata to the UI
+                        // On first execution this throws GraphInterrupt (pausing the graph).
+                        // On resume, it returns the value passed via Command({ resume: ... }).
+                        const userFilledData = interrupt({
+                            type: "incomplete_tool_call",
+                            toolName: toolCall.name,
+                            agentName: agent.agentName,
+                            toolDefinition: toolConfig.toolDefinition || "",
+                            sampleForm: preFilledForm,
+                            partialArgs: toolCall.args,
+                            missingFields: missingFields.map(f => f.label),
+                        });
+
+                        console.log(
+                            `  [${agent.agentName}] ▶ Resumed with user-filled form:`,
+                            JSON.stringify(userFilledData)
+                        );
+
+                        // The user's response is the completed args object
+                        if (typeof userFilledData === "object" && userFilledData !== null) {
+                            finalArgs = userFilledData;
+                        } else {
+                            // Fallback: if the user sent a string, try to parse it
+                            try {
+                                finalArgs = JSON.parse(userFilledData);
+                            } catch {
+                                finalArgs = { ...toolCall.args, userInput: userFilledData };
+                            }
+                        }
+
+                        // Add the user's filled data as a message for context
+                        newMessages.push(
+                            new HumanMessage(
+                                `[User filled the form for ${toolCall.name}]: ${JSON.stringify(finalArgs, null, 2)}`
+                            )
+                        );
+                    }
+                }
+
+                // Execute the API pipeline for this tool (with complete args)
                 let apiResult;
                 try {
                     apiResult = await executeGraphPipeline(
                         toolConfig.graphNodes || [],
                         toolConfig.graphEdges || [],
-                        toolCall.args
+                        finalArgs
                     );
                 } catch (err) {
                     apiResult = { error: err.message };
@@ -594,7 +676,7 @@ ${toolCallPrompt}`
                 // Add the tool call and result as messages
                 newMessages.push(
                     new AIMessage({
-                        content: responseText,
+                        content: `[${agent.agentName}] Called tool "${toolCall.name}" with args: ${JSON.stringify(finalArgs)}`,
                         name: agent.agentName,
                     })
                 );

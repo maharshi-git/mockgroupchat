@@ -266,6 +266,175 @@
             color: var(--text-muted);
         }
 
+        /* ═══════════════════════════════════════════════════
+           FORM-BASED TOOL COMPLETION STYLES
+           Renders a structured form when the LLM emits
+           an incomplete tool call with missing fields.
+           ═══════════════════════════════════════════════════ */
+
+        .tool-form-container {
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-top: 0.5rem;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .tool-form-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .tool-form-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .tool-form-header-text h4 {
+            color: var(--accent);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .tool-form-header-text p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+
+        .tool-form-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .tool-form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .tool-form-field label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .tool-form-field label .mandatory-star {
+            color: var(--secondary);
+            font-weight: 700;
+        }
+
+        .tool-form-field label .filled-check {
+            color: #22c55e;
+            font-size: 0.9rem;
+        }
+
+        .tool-form-field input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .tool-form-field input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .tool-form-field input.missing {
+            border-color: rgba(234, 179, 8, 0.4);
+            background: rgba(234, 179, 8, 0.05);
+        }
+
+        .tool-form-field input.missing:focus {
+            border-color: #eab308;
+            box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
+        }
+
+        .tool-form-field input.prefilled {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .tool-form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            justify-content: flex-end;
+        }
+
+        .tool-form-submit {
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .tool-form-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+        }
+
+        .tool-form-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .tool-form-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .tool-form-missing-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .missing-field-tag {
+            background: rgba(234, 179, 8, 0.15);
+            color: #eab308;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -276,6 +445,20 @@
         ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-3px); }
         }
     </style>
 </head>
@@ -305,7 +488,7 @@
             <div class="message system">Welcome. Please pick a flow and enter your initial prompt to start.</div>
         </div>
 
-        <div class="input-area">
+        <div class="input-area" id="inputArea">
             <textarea id="userInput" placeholder="Type your prompt here..."></textarea>
             <button class="send-btn" id="sendBtn" title="Send message">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
@@ -326,7 +509,16 @@
         let isProcessing = false;
         let isInterrupted = false;
 
-        // WebSocket Setup
+        /**
+         * When the engine interrupts with an incomplete_tool_call,
+         * this holds the form metadata so handleSend knows to
+         * collect form data instead of free text.
+         */
+        let activeToolForm = null;
+
+        // ═══════════════════════════════════════════════════
+        //  WebSocket Setup
+        // ═══════════════════════════════════════════════════
         let socket = null;
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -363,7 +555,9 @@
             userInputEl.style.height = Math.min(userInputEl.scrollHeight, 200) + 'px';
         });
 
-        // Load flows on init
+        // ═══════════════════════════════════════════════════
+        //  Flow List
+        // ═══════════════════════════════════════════════════
         async function loadFlows() {
             try {
                 const resp = await fetch('/api/flows');
@@ -381,7 +575,7 @@
                     flowListEl.appendChild(div);
                 });
             } catch (err) {
-                flowListEl.innerHTML = `<div style="color: #ef4444; padding: 1rem;">Failed to load flows.</div>`;
+                flowListEl.innerHTML = '<div style="color: #ef4444; padding: 1rem;">Failed to load flows.</div>';
             }
         }
 
@@ -391,12 +585,16 @@
             selectedFlowId = flowId;
             currentRunId = null;
             isInterrupted = false;
+            activeToolForm = null;
             userInputEl.focus();
         }
 
-        function appendMessage(role, content, author = null) {
+        // ═══════════════════════════════════════════════════
+        //  Message Rendering
+        // ═══════════════════════════════════════════════════
+        function appendMessage(role, content, author) {
             const div = document.createElement('div');
-            div.className = `message ${role}`;
+            div.className = 'message ' + role;
             
             if (author) {
                 const authorSpan = document.createElement('span');
@@ -434,7 +632,195 @@
             chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
         }
 
-        async function handleSend() {
+        // ═══════════════════════════════════════════════════
+        //  FORM-BASED TOOL COMPLETION
+        //
+        //  When the engine detects missing mandatory fields
+        //  in a tool call, it interrupts and sends the
+        //  sampleForm metadata. This function renders it as
+        //  a structured inline form in the chat.
+        //
+        //  Fields the LLM already filled are shown as
+        //  pre-filled (green border). Missing mandatory
+        //  fields are highlighted (amber border).
+        // ═══════════════════════════════════════════════════
+
+        /**
+         * Render a dynamic form for an incomplete tool call.
+         *
+         * @param {Object} interruptPayload
+         *   - toolName: string
+         *   - agentName: string
+         *   - toolDefinition: string
+         *   - sampleForm: Array<{label, type, fieldLabel, mandatory, value}>
+         *   - partialArgs: Object (what LLM filled)
+         *   - missingFields: string[]
+         */
+        function renderToolForm(interruptPayload) {
+            const { toolName, agentName, toolDefinition, sampleForm, partialArgs, missingFields } = interruptPayload;
+            
+            // Store the form metadata
+            activeToolForm = interruptPayload;
+
+            const container = document.createElement('div');
+            container.className = 'tool-form-container';
+            container.id = 'activeToolForm';
+
+            // Header
+            const headerHTML = document.createElement('div');
+            headerHTML.innerHTML = '<div class="tool-form-header">' +
+                '<div class="tool-form-icon">' +
+                    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                        '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="tool-form-header-text">' +
+                    '<h4><span class="tool-form-badge">Tool</span> ' + toolName + '</h4>' +
+                    '<p>Agent <strong>' + agentName + '</strong> needs your input to proceed' + (toolDefinition ? ' \u2014 ' + toolDefinition : '') + '</p>' +
+                '</div>' +
+            '</div>';
+            container.appendChild(headerHTML.firstChild);
+
+            // Missing fields summary tags
+            if (missingFields && missingFields.length > 0) {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'tool-form-missing-summary';
+                missingFields.forEach(function(f) {
+                    const tag = document.createElement('span');
+                    tag.className = 'missing-field-tag';
+                    const fieldLabel = sampleForm.find(function(sf) { return sf.label === f; });
+                    tag.innerText = '\u26A0 ' + ((fieldLabel && fieldLabel.fieldLabel) || f);
+                    summaryDiv.appendChild(tag);
+                });
+                container.appendChild(summaryDiv);
+            }
+
+            // Form fields
+            const fieldsDiv = document.createElement('div');
+            fieldsDiv.className = 'tool-form-fields';
+
+            sampleForm.forEach(function(field) {
+                const isMissing = missingFields.indexOf(field.label) !== -1;
+                const isPrefilled = field.value && field.value.trim() !== '';
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'tool-form-field';
+
+                const label = document.createElement('label');
+                label.setAttribute('for', 'tf_' + field.label);
+
+                let labelHTML = (field.fieldLabel || field.label);
+                if (field.mandatory) {
+                    labelHTML += ' <span class="mandatory-star">*</span>';
+                }
+                if (isPrefilled) {
+                    labelHTML += ' <span class="filled-check">\u2713 auto-filled</span>';
+                }
+                label.innerHTML = labelHTML;
+
+                const input = document.createElement('input');
+                input.type = (field.type === 'number') ? 'number' : 'text';
+                input.id = 'tf_' + field.label;
+                input.name = field.label;
+                input.value = field.value || '';
+                input.placeholder = field.fieldLabel || field.label;
+                
+                if (isMissing) {
+                    input.className = 'missing';
+                    input.setAttribute('data-missing', 'true');
+                } else if (isPrefilled) {
+                    input.className = 'prefilled';
+                }
+
+                fieldDiv.appendChild(label);
+                fieldDiv.appendChild(input);
+                fieldsDiv.appendChild(fieldDiv);
+            });
+
+            container.appendChild(fieldsDiv);
+
+            // Submit button
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'tool-form-actions';
+
+            const submitBtn = document.createElement('button');
+            submitBtn.className = 'tool-form-submit';
+            submitBtn.id = 'toolFormSubmitBtn';
+            submitBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline; vertical-align:middle; margin-right:6px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Submit &amp; Execute Tool';
+            submitBtn.onclick = function() { submitToolForm(); };
+            actionsDiv.appendChild(submitBtn);
+            container.appendChild(actionsDiv);
+
+            chatOutputEl.appendChild(container);
+            chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
+
+            // Focus the first missing field
+            const firstMissing = container.querySelector('input.missing');
+            if (firstMissing) firstMissing.focus();
+        }
+
+        /**
+         * Collect all form field values and send them as
+         * the resume payload via WebSocket.
+         */
+        function submitToolForm() {
+            if (!activeToolForm || !currentRunId) return;
+
+            const formContainer = document.getElementById('activeToolForm');
+            if (!formContainer) return;
+
+            // Collect values from all inputs
+            const formData = {};
+            const inputs = formContainer.querySelectorAll('input');
+            let hasEmptyMandatory = false;
+
+            inputs.forEach(function(input) {
+                formData[input.name] = input.value.trim();
+                
+                // Validate mandatory fields
+                if (input.getAttribute('data-missing') === 'true' && !input.value.trim()) {
+                    hasEmptyMandatory = true;
+                    input.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+                    input.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                }
+            });
+
+            if (hasEmptyMandatory) {
+                // Shake the submit button as feedback
+                const btn = document.getElementById('toolFormSubmitBtn');
+                btn.style.animation = 'shake 0.4s ease';
+                setTimeout(function() { btn.style.animation = ''; }, 400);
+                return;
+            }
+
+            // Show what the user submitted as a chat message
+            appendMessage('human', 'Form submitted for "' + activeToolForm.toolName + '":\n' + JSON.stringify(formData, null, 2));
+
+            // Disable the form
+            inputs.forEach(function(input) { input.disabled = true; });
+            const btn = document.getElementById('toolFormSubmitBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'Submitted \u2713';
+            }
+
+            // Send resume with the form data as a JSON object
+            setLoading(true);
+            socket.send(JSON.stringify({
+                type: 'resume',
+                flowId: selectedFlowId,
+                runId: currentRunId,
+                userInput: formData  // This IS the completed args object
+            }));
+
+            activeToolForm = null;
+            isInterrupted = false;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  Send / Resume
+        // ═══════════════════════════════════════════════════
+        function handleSend() {
             const prompt = userInputEl.value.trim();
             if (!prompt || isProcessing) return;
             if (!selectedFlowId) {
@@ -452,13 +838,25 @@
             userInputEl.value = '';
             userInputEl.style.height = '56px';
 
-            const payload = isInterrupted 
-                ? { type: 'resume', flowId: selectedFlowId, runId: currentRunId, userInput: prompt }
-                : { type: 'start', flowId: selectedFlowId, prompt: prompt };
+            // If user types free text while a form is showing,
+            // dismiss the form and send as plain text resume
+            if (activeToolForm) {
+                activeToolForm = null;
+            }
+
+            var payload;
+            if (isInterrupted) {
+                payload = { type: 'resume', flowId: selectedFlowId, runId: currentRunId, userInput: prompt };
+            } else {
+                payload = { type: 'start', flowId: selectedFlowId, prompt: prompt };
+            }
 
             socket.send(JSON.stringify(payload));
         }
 
+        // ═══════════════════════════════════════════════════
+        //  Response Handler
+        // ═══════════════════════════════════════════════════
         function handleResponse(data) {
             currentRunId = data.conversation_id || data.runId;
             currentStatusEl.style.display = 'block';
@@ -466,31 +864,51 @@
             // Common message rendering for all status types
             if (data.messages && data.messages.length > 0) {
                 chatOutputEl.innerHTML = '';
-                data.messages.forEach(msg => {
+                data.messages.forEach(function(msg) {
                     appendMessage(msg.role, msg.content, msg.name);
                 });
             }
 
             if (data.status === 'interrupted') {
                 isInterrupted = true;
-                statusBadgeEl.innerText = 'Interrupt: Awaiting User Input';
-                statusBadgeEl.className = 'status-badge interrupted';
-                
-                const interruptDiv = document.createElement('div');
-                interruptDiv.className = 'interrupt-box';
-                interruptDiv.innerHTML = `
-                    <h4>Action Required</h4>
-                    <p>${data.reason || 'The agent needs more information from you.'}</p>
-                    <small style="opacity: 0.5;">Run ID: ${currentRunId}</small>
-                `;
-                chatOutputEl.appendChild(interruptDiv);
-                chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
+
+                // Check if any of the interrupt data is a form-based tool completion
+                var formInterrupt = null;
+                if (data.interruptData && data.interruptData.length > 0) {
+                    for (var i = 0; i < data.interruptData.length; i++) {
+                        if (data.interruptData[i] && data.interruptData[i].type === 'incomplete_tool_call') {
+                            formInterrupt = data.interruptData[i];
+                            break;
+                        }
+                    }
+                }
+
+                if (formInterrupt) {
+                    // ─── FORM-BASED TOOL COMPLETION ───
+                    statusBadgeEl.innerText = 'Form: ' + formInterrupt.toolName;
+                    statusBadgeEl.className = 'status-badge interrupted';
+                    renderToolForm(formInterrupt);
+
+                } else {
+                    // ─── STANDARD INTERRUPT (free text) ───
+                    statusBadgeEl.innerText = 'Interrupt: Awaiting User Input';
+                    statusBadgeEl.className = 'status-badge interrupted';
+                    
+                    const interruptDiv = document.createElement('div');
+                    interruptDiv.className = 'interrupt-box';
+                    interruptDiv.innerHTML = '<h4>Action Required</h4>' +
+                        '<p>' + (data.reason || 'The agent needs more information from you.') + '</p>' +
+                        '<small style="opacity: 0.5;">Run ID: ' + currentRunId + '</small>';
+                    chatOutputEl.appendChild(interruptDiv);
+                    chatOutputEl.scrollTop = chatOutputEl.scrollHeight;
+                }
 
             } else if (data.status === 'completed') {
                 isInterrupted = false;
+                activeToolForm = null;
                 statusBadgeEl.innerText = 'Flow Completed';
                 statusBadgeEl.className = 'status-badge';
-                appendMessage('system', '─ Graph reached END ─');
+                appendMessage('system', '\u2500 Graph reached END \u2500');
             } else if (data.status === 'running') {
                 statusBadgeEl.innerText = 'Agents are working...';
                 statusBadgeEl.className = 'status-badge';
@@ -501,14 +919,14 @@
             isProcessing = loading;
             sendBtnEl.disabled = loading;
             if (loading) {
-                sendBtnEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinning"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>`;
+                sendBtnEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinning"><circle cx="12" cy="12" r="10" stroke-opacity="0.2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>';
             } else {
-                sendBtnEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`;
+                sendBtnEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
             }
         }
 
         sendBtnEl.onclick = handleSend;
-        userInputEl.onkeydown = (e) => {
+        userInputEl.onkeydown = function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
@@ -518,14 +936,5 @@
         loadFlows();
         connectWebSocket();
     </script>
-    <style>
-        .spinning {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    </style>
 </body>
 </html>
